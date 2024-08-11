@@ -1,9 +1,10 @@
 import csv
 import json
 import os
+from collections import defaultdict
 
 # Ánh xạ mã số tỉnh/thành phố thành tên đầy đủ
-province_mapping = {
+tinh_thanh_mapping = {
     "01": "THÀNH PHỐ HÀ NỘI",
     "02": "THÀNH PHỐ HỒ CHÍ MINH",
     "03": "THÀNH PHỐ HẢI PHÒNG",
@@ -82,7 +83,7 @@ def read_csv(file_path):
 def format_sbd(sbd):
     return sbd.zfill(8)
 
-# Chuyển đổi giá trị rỗng thành null và các giá trị không phải ma_ngoai_ngu thành số
+# Chuyển đổi giá trị rỗng thành null và các giá trị không phải ma_ngoai_ngu giữ nguyên chuỗi
 def process_row(row):
     processed_row = {}
     for key, value in row.items():
@@ -92,29 +93,37 @@ def process_row(row):
             try:
                 processed_row[key] = float(value) if value else None
             except ValueError:
-                processed_row[key] = value
+                processed_row[key] = value  # Giữ nguyên nếu không thể chuyển đổi thành số
     return processed_row
 
 # Thêm tên tỉnh/thành phố vào dữ liệu
-def add_province_names(data):
+def add_tinh_thanh(data):
     for row in data:
         sbd = format_sbd(row['sbd'])
         prefix = sbd[:2]
-        row['tinh_thanh'] = province_mapping.get(prefix, "UNKNOWN")
+        row['tinh_thanh'] = tinh_thanh_mapping.get(prefix, "UNKNOWN")
     return data
 
-# Lưu mỗi sbd vào một file JSON riêng biệt
-def save_each_sbd_to_json(data, output_dir):
+# Nhóm dữ liệu theo 2 số đầu tiên của sbd
+def group_by_prefix(data):
+    grouped_data = defaultdict(list)
+    for row in data:
+        sbd = format_sbd(row['sbd'])
+        prefix = sbd[:2]
+        processed_row = process_row(row)
+        processed_row['sbd'] = sbd
+        grouped_data[prefix].append(processed_row)
+    return grouped_data
+
+# Lưu dữ liệu vào các file JSON trong thư mục đầu ra
+def save_to_json(grouped_data, output_dir):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     
-    for row in data:
-        sbd = format_sbd(row['sbd'])
-        file_name = os.path.join(output_dir, f'{sbd}.json')
-        processed_row = process_row(row)
-        processed_row['sbd'] = sbd
+    for prefix, rows in grouped_data.items():
+        file_name = os.path.join(output_dir, f'{prefix}.json')
         with open(file_name, 'w', encoding='utf-8') as file:
-            json.dump(processed_row, file, indent=4, ensure_ascii=False)
+            json.dump(rows, file, indent=4, ensure_ascii=False)
 
 # Đường dẫn đến file CSV
 csv_file_path = 'diem_thi_thpt_2024.csv'
@@ -123,7 +132,8 @@ output_dir = 'data'
 
 # Thực hiện các bước
 data = read_csv(csv_file_path)
-data_with_provinces = add_province_names(data)
-save_each_sbd_to_json(data_with_provinces, output_dir)
+data_with_tinh_thanh = add_tinh_thanh(data)
+grouped_data = group_by_prefix(data_with_tinh_thanh)
+save_to_json(grouped_data, output_dir)
 
 print("Đã hoàn tất việc xử lý và lưu dữ liệu vào các file JSON.")
