@@ -1,145 +1,136 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tra cứu Điểm Thi THPT 2024</title>
+    <title>Tra cứu dữ liệu SBD</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
-            text-align: center; /* Căn giữa toàn bộ văn bản trên trang */
-        }
-        h1 {
-            margin-bottom: 20px;
-        }
-        form {
-            display: inline-block; /* Để form nằm ở giữa trang */
-            margin-bottom: 20px;
         }
         table {
-            border-collapse: collapse;
             width: 100%;
+            border-collapse: collapse;
             margin-top: 20px;
-            margin-left: auto; /* Căn giữa bảng */
-            margin-right: auto; /* Căn giữa bảng */
         }
         th, td {
-            border: 1px solid #ddd;
             padding: 8px;
             text-align: left;
+            border: 1px solid #ddd;
         }
         th {
-            background-color: #f2f2f2;
+            background-color: #f4f4f4;
         }
         .error {
             color: red;
         }
-        /* Style cho GIF loading */
         #loading {
-            display: none; /* Ẩn GIF loading khi không cần thiết */
+            display: none; /* Ẩn GIF ban đầu */
+            width: 50px;   /* Điều chỉnh kích thước GIF nếu cần */
             margin-top: 20px;
         }
     </style>
 </head>
 <body>
-    <h1>Tra cứu Điểm Thi THPT 2024</h1>
-    <form id="searchForm">
-        <label for="sbd">Nhập SBD:</label>
-        <input type="text" id="sbd" name="sbd" required>
-        <button type="submit">Tra cứu</button>
+    <h1>Tra cứu dữ liệu SBD</h1>
+    <form id="sbdForm">
+        <label for="sbdInput">Nhập số báo danh:</label>
+        <input type="text" id="sbdInput" required>
+        <button type="submit">Tìm kiếm</button>
     </form>
-    <div id="error" class="error"></div>
-    <div id="loading">
-        <img src="https://imagedelivery.net/AkgMpQx4DqEP-J62gD_TMw/a9486dc7-d40b-438c-254f-7feb132ff100/public" alt="Loading...">
+    
+    <img id="loading" src="https://imagedelivery.net/AkgMpQx4DqEP-J62gD_TMw/a9486dc7-d40b-438c-254f-7feb132ff100/public" alt="Loading...">
+    
+    <div id="result">
+        <!-- Kết quả tìm kiếm sẽ được hiển thị ở đây -->
     </div>
-    <table id="resultTable" style="display: none;">
-        <thead>
-            <tr id="tableHeader"></tr>
-        </thead>
-        <tbody id="tableBody"></tbody>
-    </table>
     
     <script>
-        // Ánh xạ tiêu đề cột từ tiếng Anh sang tiếng Việt
-        const columnTranslations = {
-            "sbd": "SBD",
-            "toan": "Toán",
-            "ngu_van": "Ngữ Văn",
-            "ngoai_ngu": "Ngoại Ngữ",
-            "vat_li": "Vật Lí",
-            "hoa_hoc": "Hóa Học",
-            "sinh_hoc": "Sinh Học",
-            "lich_su": "Lịch Sử",
-            "dia_li": "Địa Lí",
-            "gdcd": "GDCD",
-            "ma_ngoai_ngu": "Mã Ngoại Ngữ",
-            "tinh_thanh": "Tỉnh Thành"
+        const columnHeaders = {
+            sbd: 'Số báo danh',
+            toan: 'Toán',
+            ngu_van: 'Ngữ văn',
+            ngoai_ngu: 'Ngoại ngữ',
+            vat_li: 'Vật lý',
+            hoa_hoc: 'Hóa học',
+            sinh_hoc: 'Sinh học',
+            lich_su: 'Lịch sử',
+            dia_li: 'Địa lý',
+            gdcd: 'GDCD',
+            ma_ngoai_ngu: 'Mã ngoại ngữ',
+            tinh_thanh: 'Tỉnh thành'
         };
 
-        document.getElementById('searchForm').addEventListener('submit', function(event) {
+        document.getElementById('sbdForm').addEventListener('submit', function(event) {
             event.preventDefault();
-            let sbd = document.getElementById('sbd').value.trim();
-            const errorDiv = document.getElementById('error');
-            const resultTable = document.getElementById('resultTable');
-            const tableHeader = document.getElementById('tableHeader');
-            const tableBody = document.getElementById('tableBody');
-            const loadingDiv = document.getElementById('loading');
 
-            // Hiển thị GIF loading và ẩn bảng kết quả
-            loadingDiv.style.display = 'block';
-            resultTable.style.display = 'none';
+            let sbd = document.getElementById('sbdInput').value.trim();
 
-            // Clear previous results
-            errorDiv.textContent = '';
-            tableHeader.innerHTML = '';
-            tableBody.innerHTML = '';
-
-            // Format SBD to 8 digits
-            sbd = sbd.padStart(8, '0');
+            // Thêm số 0 vào đầu nếu SBD có 7 chữ số
+            if (sbd.length === 7) {
+                sbd = '0' + sbd;
+            }
 
             if (!sbd) {
-                errorDiv.textContent = 'SBD không được để trống.';
-                loadingDiv.style.display = 'none'; // Ẩn GIF loading khi có lỗi
+                alert('Vui lòng nhập số báo danh.');
                 return;
             }
 
-            fetch(`./data/${sbd}.json`)
+            const prefix = sbd.slice(0, 2);
+            const jsonFileUrl = `data/${prefix}.json`;
+
+            // Hiển thị GIF loading
+            document.getElementById('loading').style.display = 'block';
+
+            fetch(jsonFileUrl)
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error('Không tìm thấy dữ liệu cho SBD này.');
+                        throw new Error('File JSON không tồn tại.');
                     }
                     return response.json();
                 })
                 .then(data => {
-                    // Create table header
-                    const headers = Object.keys(data).filter(key => data[key] !== null);
+                    const filteredData = data.find(row => row.sbd === sbd);
+                    
+                    if (!filteredData) {
+                        document.getElementById('result').innerHTML = '<p class="error">Không tìm thấy dữ liệu cho số báo danh này.</p>';
+                        return;
+                    }
+                    
+                    let table = '<table><thead><tr>';
+                    
+                    const headers = Object.keys(filteredData);
                     headers.forEach(header => {
-                        const th = document.createElement('th');
-                        th.textContent = columnTranslations[header] || header;
-                        tableHeader.appendChild(th);
-                    });
-
-                    // Create table row
-                    const tr = document.createElement('tr');
-                    headers.forEach(header => {
-                        const td = document.createElement('td');
-                        // Format SBD for display
-                        if (header === 'sbd') {
-                            td.textContent = sbd.slice(-7); // Display last 7 digits of SBD
-                        } else {
-                            td.textContent = data[header];
+                        if (filteredData[header] !== null) {
+                            const headerText = columnHeaders[header] || header;
+                            table += `<th>${headerText}</th>`;
                         }
-                        tr.appendChild(td);
                     });
-                    tableBody.appendChild(tr);
-
-                    resultTable.style.display = 'table';
-                    loadingDiv.style.display = 'none'; // Ẩn GIF loading khi đã tải xong
+                    table += '</tr></thead><tbody>';
+                    
+                    table += '<tr>';
+                    headers.forEach(header => {
+                        if (filteredData[header] !== null) {
+                            let cellValue = filteredData[header];
+                            if (typeof cellValue === 'string' && cellValue.startsWith('0')) {
+                                cellValue = cellValue.replace(/^0+/, '');
+                            }
+                            table += `<td>${cellValue}</td>`;
+                        }
+                    });
+                    table += '</tr>';
+                    
+                    table += '</tbody></table>';
+                    document.getElementById('result').innerHTML = table;
                 })
                 .catch(error => {
-                    errorDiv.textContent = error.message;
-                    loadingDiv.style.display = 'none'; // Ẩn GIF loading khi có lỗi
+                    console.error('Lỗi:', error);
+                    document.getElementById('result').innerHTML = '<p class="error">Có lỗi xảy ra khi lấy dữ liệu.</p>';
+                })
+                .finally(() => {
+                    // Ẩn GIF loading khi dữ liệu đã được tải xong
+                    document.getElementById('loading').style.display = 'none';
                 });
         });
     </script>
